@@ -57,6 +57,7 @@ func (db *DB) GetMovie(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//Create a movie
 func (db *DB) PostMovie(w http.ResponseWriter, r *http.Request) {
 	var movie Movie
 	postBody, _ := ioutil.ReadAll(r.Body)
@@ -70,6 +71,39 @@ func (db *DB) PostMovie(w http.ResponseWriter, r *http.Request) {
 		response, _ := json.Marshal(result)
 		w.WriteHeader(http.StatusOK)
 		w.Write(response)
+	}
+}
+
+//Update Movie
+func (db *DB) UpdateMovie(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var movie Movie
+	putBody, _ := ioutil.ReadAll(r.Body)
+	json.Unmarshal(putBody, &movie)
+
+	objectID, _ := primitive.ObjectIDFromHex(vars["id"])
+	filter := bson.M{"_id": objectID}
+	update := bson.M{"$set": &movie}
+	_, err := db.collection.UpdateOne(context.TODO(), filter, update)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
+
+}
+
+//Delete Movie
+func (db *DB) DeleteMovie(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	objectID, _ := primitive.ObjectIDFromHex(vars["id"])
+	filter := bson.M{"_id": objectID}
+
+	_, err := db.collection.DeleteOne(context.TODO(), filter)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
 	}
 }
 
@@ -91,7 +125,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/movies/{id:[a-zA-Z0-9]*}", db.GetMovie).Methods("GET")
 	r.HandleFunc("/v1/movies", db.PostMovie).Methods("POST")
-
+	r.HandleFunc("/v1/movies/{id:[a-zA-Z0-9]*}", db.UpdateMovie).Methods("PUT")
+	r.HandleFunc("/v1/movies/{id:[a-zA-Z0-9]*}", db.DeleteMovie).Methods("DELETE")
 	//start server
 	srv := &http.Server{
 		Handler:      r,
